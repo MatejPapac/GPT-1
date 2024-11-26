@@ -7,9 +7,11 @@ import matplotlib.pyplot as plt
 
 # Define hyperparameter grid
 param_grid = {
-    'learning_rate': [1e-4, 3e-5, 1e-5],
-    'batch_size': [16, 32, 64],
-    'epochs': [100, 200, 300]
+    'learning_rate': [7.5e-5, 5e-5],
+    'batch_size': [32, 48],
+    'epochs': [250, 350],
+    'dropout': [0.3, 0.4],
+    'weight_decay': [1e-5, 1e-4]
 }
 
 # Logging results
@@ -17,15 +19,20 @@ results = []
 
 # Device setup
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-vocab_size = 10000  # Adjust based on your vocab.txt
+chars = ""
+with open("openwebtext/vocab.txt", 'r', encoding='utf-8') as f:
+    text = f.read()
+    chars = sorted(list(set(text)))
+
+vocab_size = len(chars)
 
 # Run grid search
 for params in product(*param_grid.values()):
-    learning_rate, batch_size, epochs = params
-    print(f"Testing: lr={learning_rate}, batch_size={batch_size}, epochs={epochs}")
+    learning_rate, batch_size, epochs, dropout, weight_decay = params
+    print(f"Testing: lr={learning_rate}, batch_size={batch_size}, epochs={epochs}, dropout={dropout}, weight_decay={weight_decay}")
 
-    # Initialize model
-    model = GPTLanguageModel(vocab_size).to(device)
+    # Initialize model with the specified dropout
+    model = GPTLanguageModel(vocab_size, dropout=dropout).to(device)
 
     # Train model and capture final training/validation loss
     trained_model, final_train_loss, final_val_loss = train_model(
@@ -33,13 +40,14 @@ for params in product(*param_grid.values()):
         get_random_chunk,  # Your data loader logic
         lr=learning_rate,
         epochs=epochs,
-        eval_iters=10,  # Set to a reasonable value
+        eval_iters=100,  # Set to a reasonable value
         batch_size=batch_size,
+        weight_decay=weight_decay,
         device=device
     )
 
     # Save the trained model
-    model_path = f"model_lr{learning_rate}_bs{batch_size}_ep{epochs}.pkl"
+    model_path = f"model_lr{learning_rate}_bs{batch_size}_ep{epochs}_d{dropout}_wd{weight_decay}.pkl"
     with open(model_path, 'wb') as f:
         pickle.dump(trained_model, f)
 
@@ -50,6 +58,8 @@ for params in product(*param_grid.values()):
         'Learning Rate': learning_rate,
         'Batch Size': batch_size,
         'Epochs': epochs,
+        'Dropout': dropout,
+        'Weight Decay': weight_decay,
         'Training Loss': final_train_loss,
         'Validation Loss': final_val_loss,
         'Model Path': model_path

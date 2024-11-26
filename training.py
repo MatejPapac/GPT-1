@@ -5,23 +5,24 @@ import mmap
 import random
 import pickle
 import argparse
+from arg import parse_args
 
 # Argument parsing
 parser = argparse.ArgumentParser(description='This is a demonstration program')
-parser.add_argument('-batch_size', type=str, required=True, help='Please provide a batch_size')
-args = parser.parse_args()
+args = parse_args()
 
 # Device configuration
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-batch_size = int(args.batch_size)
-block_size = 128
-max_iters = 200
-learning_rate = 3e-5
-eval_iters = 100
-n_embd = 384
-n_head = 4
-n_layer = 4
-dropout = 0.2
+device = args.device if torch.cuda.is_available() else 'cpu'
+batch_size = args.batch_size
+block_size = args.block_size
+max_iters = args.max_iters
+learning_rate = args.learning_rate
+eval_iters = args.eval_iters
+n_embd = args.n_embd
+n_head = args.n_head
+n_layer = args.n_layer
+dropout = args.dropout
+
 
 # Vocab setup
 with open('openwebtext/vocab.txt', 'r', encoding='utf-8') as f:
@@ -226,8 +227,8 @@ class GPTLanguageModel(nn.Module):
             index = torch.cat((index, index_next), dim=1) # (B, T+1)
         return index
 
-model = GPTLanguageModel(vocab_size)
-#print('loading model parameters...')
+model = GPTLanguageModel(vocab_size).to(device).to(device)
+print('loading model parameters...')
 #with open('model-01.pkl', 'rb') as f:
 #     model = pickle.load(f)
 #print('loaded successfully!')
@@ -253,9 +254,13 @@ if __name__ == '__main__':
     model = GPTLanguageModel(vocab_size).to(device)
     print(f"Training on {device}")
     trained_model = train_model(model, get_random_chunk, learning_rate, max_iters, eval_iters, batch_size, device)
-    with open('model-01.pkl', 'wb') as f:
-        pickle.dump(trained_model, f)
-    print("Model saved successfully.")
+torch.save({
+    'model_state_dict': model.state_dict(),  # Model weights
+    'args': vars(args),  # Hyperparameters and CLI args for reproducibility
+    'vocab_size': vocab_size  # Save any additional metadata, like vocab size
+}, 'model-01.pth')
+
+print('Model saved successfully as model-01.pth.')
     
 
   
